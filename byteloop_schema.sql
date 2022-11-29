@@ -7,54 +7,46 @@ SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,N
 -- -----------------------------------------------------
 -- Schema byteloop
 -- -----------------------------------------------------
-
--- -----------------------------------------------------
--- Schema byteloop
--- -----------------------------------------------------
 CREATE SCHEMA IF NOT EXISTS `byteloop` ;
 USE `byteloop` ;
 
+
 -- -----------------------------------------------------
--- Table `byteloop`.`Answer`
+-- Table `byteloop`.`Post`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `byteloop`.`Answer` (
-  `AnswerID` INT NOT NULL AUTO_INCREMENT,
-  `AnswerText` VARCHAR(255) NOT NULL,
-  `Upvotes` INT NULL,
-  `Downvotes` INT NULL,
-  `DateCreated` DATE NOT NULL,
-  `LastUpdated` DATE NOT NULL,
+CREATE TABLE IF NOT EXISTS `byteloop`.`Post` (
+  `PostID` INT NOT NULL AUTO_INCREMENT,
+  `PostTypeID` INT NOT NULL, 
+  `ParentID` INT,
+  `PostText` TEXT NOT NULL,
+  `Title` VARCHAR(255),
+  `DateCreated` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `LastUpdated` DATETIME,
   `UserID` INT NOT NULL,
-  PRIMARY KEY (`AnswerID`),
-  UNIQUE INDEX `QuestionID_UNIQUE` (`AnswerID` ASC) VISIBLE,
+  PRIMARY KEY (`PostID`),
   INDEX `UserID_idx` (`UserID` ASC) VISIBLE,
-  CONSTRAINT `UserID`
-    FOREIGN KEY (`UserID`)
-    REFERENCES `byteloop`.`User` (`UserID`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+  INDEX `PostTypeID_idx` (`PostTypeID` ASC) VISIBLE,
+  FOREIGN KEY (`UserID`)
+	REFERENCES `byteloop`.`User` (`UserID`)
+	ON DELETE NO ACTION
+	ON UPDATE NO ACTION,
+  FOREIGN KEY (`ParentID`)
+	REFERENCES `byteloop`.`Post` (`PostID`)
+	ON DELETE NO ACTION
+	ON UPDATE NO ACTION,
+  CONSTRAINT CHK_QuestionHasTitle CHECK (`PostTypeID` <> 1 OR `Title` IS NOT NULL), 
+  CONSTRAINT CHK_AnswerHasQuestion CHECK (`PostTypeID` <> 2 OR `ParentID` IS NOT NULL),
+  CONSTRAINT CHK_CommentHasParent CHECK (`PostTypeID` <> 3 OR `ParentID` IS NOT NULL))
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `byteloop`.`Question`
+-- Table `byteloop`.`PostType`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `byteloop`.`Question` (
-  `QuestionID` INT NOT NULL AUTO_INCREMENT,
-  `QuestionText` VARCHAR(255) NOT NULL,
-  `Upvotes` INT NULL,
-  `Downvotes` INT NULL,
-  `DateCreated` DATE NOT NULL,
-  `LastUpdated` DATE NOT NULL,
-  `AnswerID` INT NOT NULL,
-  PRIMARY KEY (`QuestionID`),
-  UNIQUE INDEX `QuestionID_UNIQUE` (`QuestionID` ASC) VISIBLE,
-  INDEX `AnswerID_idx` (`AnswerID` ASC) VISIBLE,
-  CONSTRAINT `AnswerID`
-    FOREIGN KEY (`AnswerID`)
-    REFERENCES `byteloop`.`Answer` (`AnswerID`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+CREATE TABLE IF NOT EXISTS `byteloop`.`PostType` (
+  `PostTypeID` INT NOT NULL,
+  `Name` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`PostTypeID`))
 ENGINE = InnoDB;
 
 
@@ -63,23 +55,41 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `byteloop`.`User` (
   `UserID` INT NOT NULL AUTO_INCREMENT,
-  `FirstName` VARCHAR(255) NOT NULL,
-  `LastName` VARCHAR(255) NOT NULL,
+  `FirstName` VARCHAR(255),
+  `LastName` VARCHAR(255),
   `Username` VARCHAR(255) NOT NULL,
   `Password` VARCHAR(64) NOT NULL,
-  `DateJoined` DATE NOT NULL,
-  `LastLogin` DATE NOT NULL,
-  `QuestionID` INT NULL,
-  PRIMARY KEY (`UserID`),
-  UNIQUE INDEX `UserID_UNIQUE` (`UserID` ASC) VISIBLE,
-  INDEX `QuestionID_idx` (`QuestionID` ASC) VISIBLE,
-  CONSTRAINT `QuestionID`
-    FOREIGN KEY (`QuestionID`)
-    REFERENCES `byteloop`.`Question` (`QuestionID`)
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION)
+  `DateJoined` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `ProfilePictureUrl` VARCHAR(255),
+  `LastLogin` DATE,
+  `Active` BOOLEAN DEFAULT 1, 
+  PRIMARY KEY (`UserID`))
 ENGINE = InnoDB;
 
+
+-- -----------------------------------------------------
+-- Table `byteloop`.`Vote`
+-- -----------------------------------------------------
+CREATE TABLE IF NOT EXISTS `byteloop`.`Vote` (
+  `VoteID` INT NOT NULL AUTO_INCREMENT,
+  `UserID` INT NOT NULL,
+  `PostID` INT NOT NULL,
+  `DateCreated` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`VoteID`),
+  INDEX `PostID_idx` (`PostID` ASC) VISIBLE,
+  INDEX `UserID_idx` (`UserID` ASC) VISIBLE,
+  FOREIGN KEY (`PostID`)
+	REFERENCES `byteloop`.`Post` (`PostID`)
+	ON DELETE NO ACTION
+	ON UPDATE NO ACTION,
+  FOREIGN KEY (`UserID`)
+	REFERENCES `byteloop`.`User` (`UserID`)
+	ON DELETE NO ACTION
+	ON UPDATE NO ACTION)
+ENGINE = InnoDB;
+
+-- Populate initial PostTypes
+INSERT INTO `byteloop`.`PostType` (`PostTypeID`, `Name`) VALUES (1, 'Question'), (2, 'Answer'), (3, 'Comment');
 
 SET SQL_MODE=@OLD_SQL_MODE;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
